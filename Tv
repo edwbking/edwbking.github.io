@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV Web Player</title>
+    <!-- Video.js CSS for player styling -->
+    <link href="https://zencdn.net" rel="stylesheet" />
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #fff; display: flex; height: 100vh; margin: 0; }
+        #sidebar { width: 320px; background: #1e1e1e; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        header { padding: 20px; background: #252525; font-size: 1.2rem; font-weight: bold; border-bottom: 1px solid #333; }
+        #search { padding: 10px; margin: 10px; background: #333; border: none; color: white; border-radius: 4px; }
+        #channel-list { flex-grow: 1; overflow-y: auto; }
+        .channel-item { padding: 12px 20px; border-bottom: 1px solid #2a2a2a; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+        .channel-item:hover { background: #333; color: #00bcd4; }
+        #main-player { flex-grow: 1; background: #000; display: flex; align-items: center; justify-content: center; }
+        .video-js { width: 100% !important; height: 100% !important; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <header>TVPass IPTV</header>
+    <input type="text" id="search" placeholder="Search channels...">
+    <div id="channel-list">Loading playlist...</div>
+</div>
+
+<div id="main-player">
+    <video id="iptv-video" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto"></video>
+</div>
+
+<!-- Video.js Scripts -->
+<script src="https://zencdn.net"></script>
+
+<script>
+    const M3U_URL = 'https://tvpass.org/playlist.m3u';
+    const player = videojs('iptv-video');
+    const channelListContainer = document.getElementById('channel-list');
+    let allChannels = [];
+
+    async function loadPlaylist() {
+        try {
+            // Using a CORS proxy might be necessary if tvpass.org doesn't allow direct web requests
+            const response = await fetch(M3U_URL);
+            const data = await response.text();
+            parseM3U(data);
+        } catch (error) {
+            channelListContainer.innerHTML = `<p style="padding:20px;">Error loading playlist. <br><small></small></p>`;
+        }
+    }
+
+    function parseM3U(content) {
+        const lines = content.split('\n');
+        let currentName = '';
+        
+        lines.forEach(line => {
+            line = line.trim();
+            if (line.startsWith('#EXTINF:')) {
+                // Extract name after the last comma
+                currentName = line.split(',').pop();
+            } else if (line.startsWith('http')) {
+                allChannels.push({ name: currentName, url: line });
+            }
+        });
+        renderChannels(allChannels);
+    }
+
+    function renderChannels(channels) {
+        channelListContainer.innerHTML = '';
+        channels.forEach(channel => {
+            const div = document.createElement('div');
+            div.className = 'channel-item';
+            div.textContent = channel.name;
+            div.onclick = () => {
+                player.src({ type: 'application/x-mpegURL', src: channel.url });
+                player.play();
+            };
+            channelListContainer.appendChild(div);
+        });
+    }
+
+    document.getElementById('search').addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        const filtered = allChannels.filter(c => c.name.toLowerCase().includes(query));
+        renderChannels(filtered);
+    });
+
+    loadPlaylist();
+</script>
+</body>
