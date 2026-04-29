@@ -99,4 +99,142 @@
 
         /* Time & Date Widget */
         .datetime { text-align: right; }
-        .datetime .time { font-size: 72px; font-weight: bold
+        .datetime .time { font-size: 72px; font-weight: bold; line-height: 1; margin-bottom: 5px; }
+        .datetime .time span { font-size: 28px; opacity: 0.8; font-weight: 400; }
+        .datetime .date { font-size: 24px; font-weight: 300; opacity: 0.9; }
+
+        /* Stock & Sports Headers */
+        .panel h3 { 
+            margin-top: 0; margin-bottom: 20px; 
+            font-weight: 500; font-size: 16px; 
+            text-transform: uppercase; letter-spacing: 2px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* Stocks Widget */
+        .stocks { width: 320px; }
+        .stock-item {
+            display: flex; justify-content: space-between;
+            font-size: 18px; padding-bottom: 12px; margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .stock-item:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+        .stock-ticker { font-weight: bold; }
+        .positive { color: #4ade80; font-size: 14px; margin-left: 8px;}
+        .negative { color: #f87171; font-size: 14px; margin-left: 8px;}
+
+        /* Sports Widget */
+        .sports { width: 350px; }
+        .sport-game { 
+            margin-bottom: 20px; 
+            padding-bottom: 15px; 
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sport-game:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .sport-team { 
+            display: flex; justify-content: space-between; 
+            margin-bottom: 8px; font-size: 18px; font-weight: 500;
+        }
+        .sport-status { font-size: 13px; opacity: 0.6; text-align: right; text-transform: uppercase;}
+
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <h1 style="font-weight: 300; margin-bottom: 30px; letter-spacing: 2px;">META PORTAL</h1>
+        <button id="start-btn">Start Display & Prevent Sleep</button>
+    </div>
+
+    <div class="dashboard" id="dashboard">
+        
+        <div class="row-top">
+            <div class="panel weather">
+                <div class="icon">⛅</div>
+                <div>
+                    <div class="temp">78°</div>
+                    <div class="details">Jupiter, FL • Partly Cloudy</div>
+                </div>
+            </div>
+
+            <div class="panel datetime">
+                <div class="time" id="time-display">00:00</div>
+                <div class="date" id="date-display">Loading date...</div>
+            </div>
+        </div>
+
+        <div class="row-bottom">
+            <div class="panel stocks">
+                <h3>Markets</h3>
+                <div class="stock-item">
+                    <span class="stock-ticker">AAPL</span> 
+                    <span>175.84 <span class="positive">▲ +1.2%</span></span>
+                </div>
+                <div class="stock-item">
+                    <span class="stock-ticker">TSLA</span> 
+                    <span>214.50 <span class="negative">▼ -0.8%</span></span>
+                </div>
+                <div class="stock-item">
+                    <span class="stock-ticker">S&P 500</span> 
+                    <span>5,123.40 <span class="positive">▲ +0.5%</span></span>
+                </div>
+            </div>
+
+            <div class="panel sports">
+                <h3>Live Sports</h3>
+                <div class="sport-game">
+                    <div class="sport-team"><span>MIA Heat</span> <span>108</span></div>
+                    <div class="sport-team"><span>BOS Celtics</span> <span>114</span></div>
+                    <div class="sport-status">Final • Q4</div>
+                </div>
+                <div class="sport-game">
+                    <div class="sport-team"><span>FLA Panthers</span> <span>3</span></div>
+                    <div class="sport-team"><span>TB Lightning</span> <span>2</span></div>
+                    <div class="sport-status">Final • P3</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 1. Initialize NoSleep
+        const noSleep = new NoSleep();
+
+        // 2. Handle Start Button Click
+        document.getElementById('start-btn').addEventListener('click', function() {
+            noSleep.enable(); // Engage wake lock
+            
+            // Fade out overlay and fade in dashboard
+            const overlay = document.getElementById('start-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                document.getElementById('dashboard').style.opacity = '1';
+            }, 500);
+        }, false);
+
+        // 3. Update Clock & Date Every Second
+        function updateClock() {
+            const now = new Date();
+            
+            // Format Time (12-hour format)
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            
+            document.getElementById('time-display').innerHTML = `${hours}:${minutes} <span>${ampm}</span>`;
+            
+            // Format Date
+            const options = { weekday: 'long', month: 'long', day: 'numeric' };
+            document.getElementById('date-display').innerText = now.toLocaleDateString('en-US', options);
+        }
+
+        updateClock(); // Initial call
+        setInterval(updateClock, 1000); // Continuous tick
+    </script>
+</body>
+</html>
