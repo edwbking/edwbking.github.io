@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Display with Clock and Weather</title>
+    <title>Portal Display with Clock, Weather, and Market Ticker</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
     
@@ -77,10 +77,10 @@
             font-weight: 300;
         }
 
-        /* Weather Overlay Styling (Top Right) */
+        /* Weather Overlay Styling (Top Right - Nudged down to avoid ticker) */
         #weather-overlay {
             position: absolute;
-            top: 40px;
+            top: 60px; 
             right: 40px;
             color: white;
             text-align: right;
@@ -101,6 +101,18 @@
             margin: 5px 0 0 0;
             font-weight: 300;
         }
+
+        /* Stock Ticker Overlay Styling (Top Edge) */
+        #stock-ticker-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 5;
+            display: none; 
+            /* Subtle shadow to help the widget pop */
+            filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.6));
+        }
     </style>
 </head>
 <body>
@@ -112,6 +124,47 @@
     </div>
 
     <img id="bg-image" src="" alt="Fullscreen Display">
+
+    <div id="stock-ticker-overlay">
+        <div class="tradingview-widget-container">
+            <div class="tradingview-widget-container__widget"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+            {
+            "symbols": [
+              {
+                "proName": "DJ:DJI",
+                "title": "Dow 30"
+              },
+              {
+                "proName": "FOREXCOM:SPXUSD",
+                "title": "S&P 500"
+              },
+              {
+                "proName": "FOREXCOM:NSXUSD",
+                "title": "Nasdaq 100"
+              },
+              {
+                "description": "Apple",
+                "proName": "NASDAQ:AAPL"
+              },
+              {
+                "description": "Microsoft",
+                "proName": "NASDAQ:MSFT"
+              },
+              {
+                "description": "Nvidia",
+                "proName": "NASDAQ:NVDA"
+              }
+            ],
+            "showSymbolLogo": true,
+            "colorTheme": "dark",
+            "isTransparent": true,
+            "displayMode": "adaptive",
+            "locale": "en"
+            }
+            </script>
+        </div>
+    </div>
 
     <div id="weather-overlay">
         <p id="weather-temp">--°F</p>
@@ -146,6 +199,8 @@
         const weatherOverlay = document.getElementById('weather-overlay');
         const weatherTemp = document.getElementById('weather-temp');
         const weatherDesc = document.getElementById('weather-desc');
+
+        const stockTickerOverlay = document.getElementById('stock-ticker-overlay');
 
         // Function to update the clock and date
         function updateDateTime() {
@@ -202,12 +257,13 @@
             bgImage.style.display = 'block';
             datetimeOverlay.style.display = 'block';
             weatherOverlay.style.display = 'block';
+            stockTickerOverlay.style.display = 'block';
 
             // 4. Start Clock
             updateDateTime();
             setInterval(updateDateTime, 1000);
 
-            // 5. Start Weather (Updates every 15 mins to save bandwidth)
+            // 5. Start Weather (Updates every 15 mins)
             updateWeather();
             setInterval(updateWeather, 15 * 60 * 1000); 
 
