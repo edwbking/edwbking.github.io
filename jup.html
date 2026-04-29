@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Display</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+    
+    <style>
+        /* Reset margins and prevent scrolling */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden; 
+            font-family: sans-serif;
+        }
+
+        /* Full screen image styling */
+        #bg-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures the image fills the screen. Use 'contain' if you don't want cropping */
+            display: none; /* Hidden until the user interacts */
+        }
+
+        /* Overlay to force a user click (Required by modern browsers for NoSleep to work) */
+        #start-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        button {
+            padding: 20px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            background-color: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <h1>Meta Portal Display</h1>
+        <p>Tap the button below to keep the screen awake and start the slideshow.</p>
+        <button id="start-btn">Start Display</button>
+    </div>
+
+    <img id="bg-image" src="" alt="Fullscreen Display">
+
+    <script>
+        // --- CONFIGURATION ---
+        // Replace this URL with the direct link to the image you want to display
+        const imageUrl = 'https://cdn.pixelcaster.com/public.pixelcaster.com/snapshots/wyndham-grand-jupiter/latest.jpg'; 
+        const refreshIntervalMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+        // ---------------------
+
+        const noSleep = new NoSleep();
+        const startOverlay = document.getElementById('start-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const bgImage = document.getElementById('bg-image');
+
+        // Function triggered by the user's first tap
+        startBtn.addEventListener('click', function enableNoSleep() {
+            // Enable the wake lock
+            noSleep.enable();
+            
+            // Hide the start menu and show the image container
+            startOverlay.style.display = 'none';
+            bgImage.style.display = 'block';
+
+            // Load the image immediately
+            refreshImage();
+
+            // Set the timer to refresh the image every 5 minutes
+            setInterval(refreshImage, refreshIntervalMs);
+        }, false);
+
+        // Function to fetch the image again without reloading the page
+        function refreshImage() {
+            // We append a timestamp to the URL so the browser doesn't load a cached version.
+            // This is especially useful if the image at the URL gets updated (e.g., a live weather map or a webcam).
+            const timestamp = new Date().getTime();
+            const separator = imageUrl.includes('?') ? '&' : '?';
+            
+            bgImage.src = `${imageUrl}${separator}t=${timestamp}`;
+        }
+    </script>
+
+</body>
+</html>
