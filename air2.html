@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Air Traffic Portal</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* Base Reset & Full Screen Lock */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000; /* Pure black background */
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* Full Screen Map / iframe Container */
+        #radar-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Local Receiver iframe (Hidden by default, uncomment in HTML to use) */
+        .local-radar-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Overlay UI Styling */
+        #overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(10, 10, 10, 0.85);
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        #overlay h1 {
+            margin: 0;
+            font-size: 16px;
+            color: #00ff00;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #status {
+            font-size: 12px;
+            color: #00aa00;
+        }
+
+        /* NoSleep Button Styling */
+        button {
+            background: transparent;
+            border: 1px solid #555;
+            color: #ccc;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #222;
+            color: #fff;
+            border-color: #777;
+        }
+
+        button.active {
+            border-color: #00ff00;
+            color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="radar-container">
+        </div>
+
+    <div id="overlay">
+        <h1>Air Traffic Live</h1>
+        <div id="status">Initializing Radar...</div>
+        <button id="noSleepBtn">Enable "NoSleep" Mode</button>
+    </div>
+
+    <script>
+        // ----------------------------------------------------
+        // 1. OPEN SOURCE MAP INITIALIZATION (Leaflet)
+        // ----------------------------------------------------
+        
+        // Center on a default location (e.g., New York). Change coordinates as needed.
+        const map = L.map('radar-container', { zoomControl: false }).setView([40.7128, -74.0060], 8);
+        
+        // Add dark-themed tiles (free, open-source friendly Carto tiles)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        }).addTo(map);
+
+        // Placeholder function to simulate fetching open-source data (like OpenSky)
+        setTimeout(() => {
+            document.getElementById('status').innerText = "Radar Active [Awaiting Data]";
+            // You can integrate the OpenSky REST API here:
+            // fetch('https://opensky-network.org/api/states/all').then(...)
+        }, 1500);
+
+        // ----------------------------------------------------
+        // 2. NOSLEEP.JS & FULLSCREEN LOGIC
+        // ----------------------------------------------------
+        
+        const noSleep = new NoSleep();
+        const noSleepBtn = document.getElementById('noSleepBtn');
+
+        noSleepBtn.addEventListener('click', function enablePortalMode() {
+            // 1. Enable NoSleep (Must be wrapped in a user-interaction event)
+            noSleep.enable();
+            
+            // 2. Request Fullscreen across different browser engines
+            const docElm = document.documentElement;
+            if (docElm.requestFullscreen) {
+                docElm.requestFullscreen();
+            } else if (docElm.mozRequestFullScreen) { /* Firefox */
+                docElm.mozRequestFullScreen();
+            } else if (docElm.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+                docElm.webkitRequestFullscreen();
+            } else if (docElm.msRequestFullscreen) { /* IE/Edge */
+                docElm.msRequestFullscreen();
+            }
+
+            // 3. Update the UI to show it is active
+            noSleepBtn.innerText = 'NoSleep & Fullscreen: ACTIVE';
+            noSleepBtn.classList.add('active');
+            
+            // Optional: Hide the button after a few seconds to declutter the screen
+            setTimeout(() => {
+                noSleepBtn.style.display = 'none';
+            }, 3000);
+
+        }, false);
+    </script>
+</body>
+</html>
