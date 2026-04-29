@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Portal Air Traffic</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #111; color: white; font-family: sans-serif; }
+        #map { height: 100vh; width: 100vw; }
+        #overlay {
+            position: absolute; top: 20px; left: 20px; z-index: 1000;
+            background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px;
+            pointer-events: none; border: 1px solid #444;
+        }
+        #unlock-btn {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 9999; display: flex;
+            justify-content: center; align-items: center; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="unlock-btn"><h1>Tap to Start Radar (Keeps Screen On)</h1></div>
+    
+    <div id="overlay">
+        <h2 style="margin:0">Local Traffic</h2>
+        <p id="status">Initializing...</p>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const noSleep = new NoSleep();
+        const map = L.map('map', { zoomControl: false }).setView([40.7128, -74.0060], 9); // Default: NYC
+        const markers = {};
+
+        // Dark Mode Maps
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        // 1. Activate NoSleep & Geolocation on first tap
+        document.getElementById('unlock-btn').addEventListener('click', function() {
+            noSleep.enable();
+            this.style.display = 'none';
+            document.getElementById('status').innerText = "Fetching position...";
+            
+            map.locate({setView: true, maxZoom: 10});
+        });
+
+        map.on('locationfound', (e) => {
+            document.getElementById('status').innerText = "Tracking Live...";
+            fetchTraffic(e.latlng.lat, e.latlng.lng);
+            setInterval(() => fetchTraffic(e.latlng.lat, e.latlng.lng), 10000); // Refresh every 10s
+        });
+
+        // 2. Fetch OpenSky Data
+        async function fetchTraffic(lat, lon) {
+            // Box roughly 1 degree (~70 miles) around you
+            const area = `lamin=${lat-0.5}&lomin=${lon-0.5}&lamax=${lat+0.5}&lomax=${lon+0.5}`;
+            try {
+                const response = await fetch(`https://opensky-network.org/api/states/all?${area}`);
+                const data = await response.json();
+                
+                if (data.states) {
+                    updateMarkers(data.states);
+                }
+            } catch (err) {
+                console.error("API Limit or Network Error", err);
+            }
+        }
+
+        // 3. Update Map Markers
+        function updateMarkers(states) {
+            states.forEach(s => {
+                const [icao, callsign, country, time, last, lon, lat, alt, onGround, velocity, heading] = s;
+                
+                if (markers[icao]) {
+                    markers[icao].setLatLng([lat, lon]);
+                } else {
+                    markers[icao] = L.marker([lat, lon]).addTo(map)
+                        .bindTooltip(`${callsign || 'N/A'}<br>${Math.round(velocity * 2.23)} mph`, {permanent: false});
+                }
+            });
+        }
+    </script>
+</body>
+</html>
