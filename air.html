@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Traffic Portal</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+    
+    <style>
+        body { margin: 0; padding: 0; background: #000; font-family: 'Inter', sans-serif; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        
+        /* Overlay UI */
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .status-card {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            color: #00ff41; /* Matrix Green */
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            pointer-events: auto;
+        }
+
+        #wake-lock-btn {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        #wake-lock-btn.active { background: #00ff41; color: black; }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div class="status-card">
+        <h2 style="margin: 0 0 5px 0; font-size: 18px;">AIR TRAFFIC LIVE</h2>
+        <div id="stats">Initializing Radar...</div>
+        <button id="wake-lock-btn">Enable "NoSleep" Mode</button>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script>
+    // 1. CONFIGURATION
+    const MAPBOX_TOKEN = 'YOUR_MAPBOX_TOKEN_HERE'; // Replace with yours
+    const UPDATE_INTERVAL = 10000; // 10 seconds
+    
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    var noSleep = new NoSleep();
+    let wakeLockEnabled = false;
+
+    // 2. INITIALIZE MAP
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/dark-v11', // Dark "Meta" aesthetic
+        center: [-74.006, 40.7128], // Default to NYC, will update to your location
+        zoom: 9,
+        pitch: 45
+    });
+
+    // 3. NOSLEEP LOGIC
+    const btn = document.getElementById('wake-lock-btn');
+    btn.addEventListener('click', function() {
+        if (!wakeLockEnabled) {
+            noSleep.enable();
+            btn.textContent = "NoSleep: ACTIVE";
+            btn.classList.add('active');
+            wakeLockEnabled = true;
+        } else {
+            noSleep.disable();
+            btn.textContent = "Enable \"NoSleep\" Mode";
+            btn.classList.remove('active');
+            wakeLockEnabled = false;
+        }
+    }, false);
+
+    // 4. FETCH AIR TRAFFIC (OpenSky Network)
+    async function updateTraffic() {
+        const bounds = map.getBounds();
+        // OpenSky API uses [lamin, lomin, lamax, lomax]
+        const url = `https://opensky-network.org/api/states/all?lamin=${bounds.getSouth()}&lomin=${bounds.getWest()}&lamax=${bounds.getNorth()}&lomax=${bounds.getEast()}`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            renderPlanes(data.states);
+            document.getElementById('stats').innerText = `Tracking ${data.states ? data.states.length : 0} aircraft in view`;
+        } catch (err) {
+            console.error("Flight data error:", err);
+        }
+    }
+
+    // 5. RENDER PLANES ON MAP
+    function renderPlanes(states) {
+        if (!states) return;
+
+        const geojson = {
+            type: 'FeatureCollection',
+            features: states.map(plane => ({
+                type: 'Feature',
+                geometry: {
+                    type: 'Point',
+                    coordinates: [plane[5], plane[6]] // longitude, latitude
+                },
+                properties: {
+                    callsign: plane[1],
+                    altitude: plane[7],
+                    velocity: plane[9],
+                    rotation: plane[10] || 0
+                }
+            }))
+        };
+
+        if (map.getSource('planes')) {
+            map.getSource('planes').setData(geojson);
+        } else {
+            map.addSource('planes', { type: 'geojson', data: geojson });
+            map.addLayer({
+                id: 'planes-layer',
+                type: 'symbol',
+                source: 'planes',
+                layout: {
+                    'icon-image': 'airport-15', // Default Mapbox icon
+                    'icon-rotate': ['get', 'rotation'],
+                    'text-field': ['get', 'callsign'],
+                    'text-offset': [0, 1.2],
+                    'text-size': 10
+                },
+                paint: {
+                    'text-color': '#00ff41'
+                }
+            });
+        }
+    }
+
+    // Initialize
+    map.on('load', () => {
+        // Request user location
+        navigator.geolocation.getCurrentPosition(pos => {
+            map.setCenter([pos.coords.longitude, pos.coords.latitude]);
+            updateTraffic();
+        });
+        
+        setInterval(updateTraffic, UPDATE_INTERVAL);
+    });
+</script>
+</body>
+</html>
