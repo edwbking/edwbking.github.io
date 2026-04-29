@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Display</title>
+    <title>Portal Display with Clock</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
     
@@ -16,18 +16,18 @@
             height: 100%;
             background-color: #000;
             overflow: hidden; 
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         /* Full screen image styling */
         #bg-image {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Ensures the image fills the screen. Use 'contain' if you don't want cropping */
+            object-fit: cover; 
             display: none; /* Hidden until the user interacts */
         }
 
-        /* Overlay to force a user click (Required by modern browsers for NoSleep to work) */
+        /* Overlay to force a user click */
         #start-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -49,6 +49,33 @@
             border: none;
             border-radius: 10px;
             margin-top: 20px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* Date and Time Overlay Styling */
+        #datetime-overlay {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            color: white;
+            text-align: right;
+            /* Text shadow ensures the white text is readable even if the background image is white */
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9), 0px 0px 20px rgba(0, 0, 0, 0.5);
+            z-index: 5;
+            display: none; /* Hidden until started */
+        }
+
+        #time {
+            font-size: 80px;
+            font-weight: bold;
+            margin: 0;
+            line-height: 1;
+        }
+
+        #date {
+            font-size: 32px;
+            margin: 5px 0 0 0;
+            font-weight: 300;
         }
     </style>
 </head>
@@ -56,16 +83,21 @@
 
     <div id="start-overlay">
         <h1>Meta Portal Display</h1>
-        <p>Tap the button below to keep the screen awake and start the slideshow.</p>
+        <p>Tap to start full screen, enable keep-awake, and load image.</p>
         <button id="start-btn">Start Display</button>
     </div>
 
     <img id="bg-image" src="" alt="Fullscreen Display">
 
+    <div id="datetime-overlay">
+        <p id="time"></p>
+        <p id="date"></p>
+    </div>
+
     <script>
         // --- CONFIGURATION ---
         // Replace this URL with the direct link to the image you want to display
-        const imageUrl = 'https://cdn.pixelcaster.com/public.pixelcaster.com/snapshots/wyndham-grand-jupiter/latest.jpg'; 
+        const imageUrl = 'https://via.placeholder.com/1920x1080.png?text=Your+Image+Here'; 
         const refreshIntervalMs = 5 * 60 * 1000; // 5 minutes in milliseconds
         // ---------------------
 
@@ -73,30 +105,53 @@
         const startOverlay = document.getElementById('start-overlay');
         const startBtn = document.getElementById('start-btn');
         const bgImage = document.getElementById('bg-image');
+        
+        const datetimeOverlay = document.getElementById('datetime-overlay');
+        const timeEl = document.getElementById('time');
+        const dateEl = document.getElementById('date');
+
+        // Function to update the clock and date
+        function updateDateTime() {
+            const now = new Date();
+            
+            // Format time (e.g., "12:45 PM")
+            timeEl.textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            
+            // Format date (e.g., "Monday, April 24")
+            dateEl.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+        }
 
         // Function triggered by the user's first tap
-        startBtn.addEventListener('click', function enableNoSleep() {
-            // Enable the wake lock
+        startBtn.addEventListener('click', function() {
+            // 1. Enable the wake lock (nosleep.js)
             noSleep.enable();
-            
-            // Hide the start menu and show the image container
+
+            // 2. Request Full Screen (Browser API)
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari/Older Browsers */
+                elem.webkitRequestFullscreen();
+            }
+
+            // 3. Hide the start menu and show the image & clock
             startOverlay.style.display = 'none';
             bgImage.style.display = 'block';
+            datetimeOverlay.style.display = 'block';
 
-            // Load the image immediately
+            // 4. Start the clock and set it to update every second (1000 ms)
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+
+            // 5. Load the image immediately, then set interval
             refreshImage();
-
-            // Set the timer to refresh the image every 5 minutes
             setInterval(refreshImage, refreshIntervalMs);
         }, false);
 
         // Function to fetch the image again without reloading the page
         function refreshImage() {
-            // We append a timestamp to the URL so the browser doesn't load a cached version.
-            // This is especially useful if the image at the URL gets updated (e.g., a live weather map or a webcam).
             const timestamp = new Date().getTime();
             const separator = imageUrl.includes('?') ? '&' : '?';
-            
             bgImage.src = `${imageUrl}${separator}t=${timestamp}`;
         }
     </script>
