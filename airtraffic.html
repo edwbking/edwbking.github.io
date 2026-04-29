@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Local Flight Tracker</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* Full screen setup */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        #map {
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* Start Overlay for NoSleep.js activation */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-family: sans-serif;
+            cursor: pointer;
+        }
+
+        #start-button {
+            padding: 20px 40px;
+            font-size: 24px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .plane-icon {
+            background: none;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <h1 style="margin-bottom: 10px;">Local Flight Tracker</h1>
+        <p style="margin-bottom: 30px; text-align: center;">Requires location access to find local flights.</p>
+        <button id="start-button">Tap to Start (Keeps Screen Awake)</button>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+
+    <script>
+        let map;
+        let markers = {}; // Store aircraft markers by their ICAO24 hex code
+        const noSleep = new NoSleep();
+
+        // 1. Initialize the App on Tap
+        document.getElementById('start-overlay').addEventListener('click', function() {
+            // Enable NoSleep
+            noSleep.enable();
+            
+            // Hide Overlay
+            this.style.display = 'none';
+            
+            // Initialize Map
+            initMap();
+        });
+
+        function initMap() {
+            // Default center (will update if geolocation succeeds)
+            map = L.map('map', { zoomControl: false }).setView([40.7128, -74.0060], 10);
+
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Get user's local position
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    map.setView([lat, lon], 10);
+                    
+                    // Add a marker for the user's location
+                    L.circleMarker([lat, lon], {radius: 5, color: 'red'}).addTo(map)
+                     .bindPopup('Your Device');
+
+                    // Fetch data immediately, then every 15 seconds
+                    fetchFlightData();
+                    setInterval(fetchFlightData, 15000); 
+                }, () => {
+                    alert("Location access denied. Displaying default location.");
+                    fetchFlightData();
+                    setInterval(fetchFlightData, 15000);
+                });
+            } else {
+                fetchFlightData();
+                setInterval(fetchFlightData, 15000);
+            }
+
+            // Refetch when map is moved/panned
+            map.on('moveend', fetchFlightData);
+        }
+
+        // 2. Fetch Data from OpenSky
+        async function fetchFlightData() {
+            const bounds = map.getBounds();
+            // OpenSky requires bounds to filter local traffic (lamin, lomin, lamax, lomax)
+            const url = `https://opensky-network.org/api/states/all?lamin=${bounds.getSouth()}&lomin=${bounds.getWest()}&lamax=${bounds.getNorth()}&lomax=${bounds.getEast()}`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                
+                if (data && data.states) {
+                    updateMap(data.states);
+                }
+            } catch (error) {
+                console.error('Error fetching OpenSky data:', error);
+            }
+        }
+
+        // 3. Plot Aircraft on Map
+        function updateMap(states) {
+            const currentIcaos = new Set();
+
+            states.forEach(flight => {
+                const icao24 = flight[0];
+                const callsign = flight[1] ? flight[1].trim() : 'N/A';
+                const lon = flight[5];
+                const lat = flight[6];
+                const alt = flight[7] ? Math.round(flight[7]) + 'm' : 'Ground';
+                const trueTrack = flight[10] || 0; // Heading for icon rotation
+
+                if (lat === null || lon === null) return;
+
+                currentIcaos.add(icao24);
+
+                // SVG Airplane Icon rotated based on true track
+                const planeSvg = `
+                    <svg viewBox="0 0 24 24" width="32" height="32" style="transform: rotate(${trueTrack}deg); filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.5));">
+                        <path d="M21,16V14L13,9V3.5A1.5,1.5 0 0,0 11.5,2A1.5,1.5 0 0,0 10,3.5V9L2,14V16L10,13.5V19L8,20.5V22L11.5,21L15,22V20.5L13,19V13.5L21,16Z" fill="#1E90FF" stroke="#FFFFFF" stroke-width="1"/>
+                    </svg>
+                `;
+
+                const customIcon = L.divIcon({
+                    html: planeSvg,
+                    className: 'plane-icon',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+
+                if (markers[icao24]) {
+                    // Update existing marker position and icon rotation
+                    markers[icao24].setLatLng([lat, lon]);
+                    markers[icao24].setIcon(customIcon);
+                    markers[icao24].getPopup().setContent(`<b>${callsign}</b><br>Alt: ${alt}`);
+                } else {
+                    // Create new marker
+                    markers[icao24] = L.marker([lat, lon], { icon: customIcon }).addTo(map);
+                    markers[icao24].bindPopup(`<b>${callsign}</b><br>Alt: ${alt}`);
+                }
+            });
+
+            // Remove markers for planes that flew out of bounds or stopped broadcasting
+            for (const icao24 in markers) {
+                if (!currentIcaos.has(icao24)) {
+                    map.removeLayer(markers[icao24]);
+                    delete markers[icao24];
+                }
+            }
+        }
+    </script>
+</body>
+</html>
