@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Grid - SD</title>
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            gap: 2px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Keeps aspect ratio */
+        }
+
+        .label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="grid-container">
+    <div class="video-wrapper">
+        <div class="label">LiveNOW from FOX</div>
+        <video id="video1" controls muted></video>
+    </div>
+    <div class="video-wrapper">
+        <div class="label">Bloomberg US</div>
+        <video id="video2" controls muted></video>
+    </div>
+    <div class="video-wrapper">
+        <div class="label">NBC News</div>
+        <video id="video3" controls muted></video>
+    </div>
+    <div class="video-wrapper">
+        <div class="label">CBS News</div>
+        <video id="video4" controls muted></video>
+    </div>
+</div>
+
+<script>
+    const streams = [
+        'https://cdn-uw2-prod.tsv2.amagi.tv/linear/amg00488-foxdigital-livenowbyfox-lgus/playlist.m3u8',
+        'https://www.bloomberg.com/media-manifest/streams/phoenix-us.m3u8',
+        'https://livehub-voidnet.onrender.com/cluster/streamcore/us/NBC_REDIS.m3u8',
+        'https://lineup.cbsivideo.com/playout/8796731e-7ce7-4bcf-bb04-41ef5a969c62/master.m3u8'
+    ];
+
+    function setupVideo(id, url) {
+        const video = document.getElementById(id);
+        
+        if (Hls.isSupported()) {
+            const hls = new Hls({
+                // Limits initial bandwidth to favor "Standard Definition" speed
+                capLevelToPlayerSize: true 
+            });
+            hls.loadSource(url);
+            hls.attachMedia(video);
+        } 
+        // For Safari which supports HLS natively
+        else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = url;
+        }
+    }
+
+    setupVideo('video1', streams[0]);
+    setupVideo('video2', streams[1]);
+    setupVideo('video3', streams[2]);
+    setupVideo('video4', streams[3]);
+</script>
+
+</body>
+</html>
