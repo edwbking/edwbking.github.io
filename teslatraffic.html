@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tesla FL511 Traffic Cam Companion</title>
+    <!-- Leaflet CSS for Map Architecture -->
+    <link rel="stylesheet" href="https://unpkg.com" />
+    <style>
+        /* CSS RESET & TESLA BROWSER OPTIMIZATIONS */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #111111;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            color: #E0E0E0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* DASHBOARD STATUS OVERLAY */
+        #status-dashboard {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px 16px;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        #status-dashboard h1 {
+            font-size: 14px;
+            margin: 0 0 6px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #00E676;
+        }
+
+        .stat-line {
+            font-size: 12px;
+            color: #B0B0B0;
+            margin: 3px 0;
+        }
+
+        .stat-value {
+            color: #FFFFFF;
+            font-weight: bold;
+        }
+
+        /* POPUP & TRAFFIC CAMERA THUMBNAIL STYLING */
+        .leaflet-popup-content-wrapper {
+            background: #1A1A1A !important;
+            color: #FFFFFF !important;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        .leaflet-popup-tip {
+            background: #1A1A1A !important;
+            border: 1px solid #444;
+        }
+
+        .cam-container {
+            width: 280px;
+            text-align: center;
+        }
+
+        .cam-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #E0E0E0;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        .cam-frame {
+            width: 100%;
+            height: 180px;
+            background: #000000;
+            border-radius: 4px;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cam-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* DARK MODE TILES ALTERATION */
+        .leaflet-layer {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+
+        /* REFRESH INDICATION ANIMATION */
+        .refreshing {
+            color: #FFC107 !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status-dashboard">
+        <h1>FL511 Companion</h1>
+        <div class="stat-line">GPS Status: <span id="gps-status" class="stat-value">Acquiring...</span></div>
+        <div class="stat-line">Cams Nearby: <span id="cam-count" class="stat-value">0</span></div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet Engine Javascript -->
+    <script src="https://unpkg.com"></script>
+    <script>
+        // CORE CONSTANTS
+        const SEARCH_RADIUS_MILES = 5; // Radius to query and display cameras safely
+        const API_REFRESH_INTERVAL = 30000; // Update camera data feed every 30 seconds
+
+        // STATE MUTABLES
+        let map;
+        let userMarker;
+        let cameraLayerGroup;
+        let userCoords = null;
+        let isInitialLoad = true;
+        let activePopupCamId = null;
+        let imageRefreshTimer = null;
+
+        // Initialize App Ecosystem
+        function initApp() {
+            // Build map optimized for Tesla view configurations
+            map = L.map('map', {
+                zoomControl: false, 
+                attributionControl: false
+            }).setView([27.6648, -81.5158], 7); // Default fallback center (Florida)
+
+            // Inject OpenStreetMap Layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18
+            }).addTo(map);
+
+            cameraLayerGroup = L.layerGroup().addTo(map);
+
+            // Establish Custom Navigation Marker
+            const userIcon = L.divIcon({
+                className: 'user-location-marker',
+                html: '<div style="background-color: #2979FF; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #FFFFFF; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+            userMarker = L.marker([0, 0], { icon: userIcon }).addTo(map);
+
+            // Trigger Geolocation Stream
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(handleGPSUpdate, handleGPSError, {
+                    enableHighAccuracy: true,
+                    maximumAge: 1000,
+                    timeout: 10000
+                });
+            } else {
+                document.getElementById('gps-status').innerText = "Not Supported";
+            }
+
+            // Continuous background fetch loop
+            setInterval(fetchNearbyCameras, API_REFRESH_INTERVAL);
+        }
+
+        // Handle Live Tracking Ingress
+        function handleGPSUpdate(position) {
+            const { latitude, longitude } = position.coords;
+            userCoords = [latitude, longitude];
+
+            document.getElementById('gps-status').innerText = "Connected";
+            userMarker.setLatLng(userCoords);
+
+            if (isInitialLoad) {
+                map.setView(userCoords, 13);
+                isInitialLoad = false;
+                fetchNearbyCameras();
+            }
+        }
+
+        function handleGPSError(err) {
+            console.warn(`ERROR(${err.code}): ${err.message}`);
+            document.getElementById('gps-status').innerText = "Signal Error";
+        }
+
+        // Fetch Data Directly from the Official FL511 Spatial Feature Server
+        function fetchNearbyCameras() {
+            if (!userCoords) return;
+
+            document.getElementById('gps-status').classList.add('refreshing');
+
+            // Conversion: Miles to Degrees Approximate Envelope bounding box
+            const degEnvelope = SEARCH_RADIUS_MILES / 69.0; 
+            const minLat = userCoords[0] - degEnvelope;
+            const maxLat = userCoords[0] + degEnvelope;
+            const minLon = userCoords[1] - degEnvelope;
+            const maxLon = userCoords[1] + degEnvelope;
+
+            // ArcGIS REST API Endpoint Formatted for JSON Geometry Queries
+            const baseServerUrl = "https://arcgis.com";
+            const params = new URLSearchParams({
+                where: `1=1`,
+                geometry: JSON.stringify({
+                    xmin: minLon, ymin: minLat, xmax: maxLon, ymax: maxLat,
+                    spatialReference: { wkid: 4326 }
+                }),
+                geometryType: "esriGeometryEnvelope",
+                spatialRel: "esriSpatialRelIntersects",
+                outFields: "ID,NAME,IMAGEURL", // Grab properties for parsing snapshots
+                returnGeometry: true,
+                f: "pjson"
+            });
+
+            fetch(`${baseServerUrl}?${params.toString()}`)
+                .then(res => res.json())
+                .then(data => {
+                    renderCameras(data.features || []);
+                })
+                .catch(err => console.error("FL511 Feed Offline:", err))
+                .finally(() => {
+                    document.getElementById('gps-status').classList.remove('refreshing');
+                });
+        }
+
+        // Render Parsed Spatial Nodes
+        function renderCameras(features) {
+            cameraLayerGroup.clearLayers();
+            document.getElementById('cam-count').innerText = features.length;
+
+            const baseCamIconHtml = `
+                <div style="background-color: #E53935; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #FFF; box-shadow: 0 2px 5px rgba(0,0,0,0.4);"></div>
+            `;
+
+            features.forEach(feature => {
+                const { attributes, geometry } = feature;
+                if (!geometry || !attributes) return;
+
+                const lat = geometry.y;
+                const lon = geometry.x;
+                const camId = attributes.ID;
+                const camName = attributes.NAME;
+                // Force HTTPS Protocol over the incoming stream URL
+                let camImgUrl = attributes.IMAGEURL ? attributes.IMAGEURL.replace("http://", "https://") : "";
+
+                const camIcon = L.divIcon({
+                    className: `cam-marker-${camId}`,
+                    html: baseCamIconHtml,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+
+                const marker = L.marker([lat, lon], { icon: camIcon });
+
+                // Generate popup architecture dynamically to fit memory footprints
+                marker.on('popupopen', () => {
+                    activePopupCamId = camId;
+                    startLivePopupRefresh(camId, camImgUrl);
+                });
+
+                marker.on('popupclose', () => {
+                    activePopupCamId = null;
+                    clearInterval(imageRefreshTimer);
+                });
+
+                const popupHtml = `
+                    <div class="cam-container">
+                    
+                    ${camName}`;marker.bindPopup(popupHtml, { maxWidth: 300 });cameraLayerGroup.addLayer(marker);});// Re-bind actively open camera frame safely if layers resetif (activePopupCamId) {const activeMarker = features.find(f => f.attributes.ID === activePopupCamId);if (!activeMarker) clearInterval(imageRefreshTimer);}}// Live Frame Buffer Updates for Active Viewsfunction startLivePopupRefresh(id, url) {clearInterval(imageRefreshTimer);imageRefreshTimer = setInterval(() => {const imgElement = document.getElementById(popup-img-${id});if (imgElement) {// Cache bust using epoch timestamps to pull instantaneous roadway snapshotsimgElement.src = ${url.split('?')[0]}?ts=${new Date().getTime()};}}, 5000); // Polls every 5 seconds while actively maximized}window.onload = initApp;
