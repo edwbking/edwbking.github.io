@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="240">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reloading Fullscreen Slideshow with Waze Map</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #000; }
+        
+        .slide-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        .slide-container.active { opacity: 1; }
+
+        .bg-blur {
+            position: absolute;
+            top: -20px; left: -20px;
+            width: calc(100% + 40px); height: calc(100% + 40px);
+            background-size: cover;
+            background-position: center;
+            filter: blur(30px) brightness(0.6);
+            transform: scale(1.05);
+            z-index: 1;
+        }
+
+        .fg-image {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 2;
+        }
+
+        /* Waze Map Widget Container */
+        .map-widget {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .map-widget iframe {
+            display: block;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Slide 1 -->
+    <div class="slide-container active">
+        <div class="bg-blur" style="background-image: url('https://fl511.com/map/Cctv/1885?t=1781017558');"></div>
+        <div class="fg-image" style="background-image: url('https://fl511.com/map/Cctv/1885?t=1781017558');"></div>
+    </div>
+
+    <!-- Slide 2 -->
+    <div class="slide-container">
+        <div class="bg-blur" style="background-image: url('https://fl511.com/map/Cctv/1882?t=1781023742');"></div>
+        <div class="fg-image" style="background-image: url('https://fl511.com/map/Cctv/1882?t=1781023742');"></div>
+    </div>
+
+    <!-- Slide 3 -->
+    <div class="slide-container">
+        <div class="bg-blur" style="background-image: url('https://fl511.com/map/Cctv/1978?t=1781023777');"></div>
+        <div class="fg-image" style="background-image: url('https://fl511.com/map/Cctv/1978?t=1781023777');"></div>
+    </div>
+
+<!-- Slide 4 -->
+    <div class="slide-container">
+        <div class="bg-blur" style="background-image: url('https://fl511.com/map/Cctv/1975?t=1781023892');"></div>
+        <div class="fg-image" style="background-image: url('https://fl511.com/map/Cctv/1975?t=1781023892');"></div>
+    </div>
+
+<!-- Slide 5 -->
+    <div class="slide-container">
+        <div class="bg-blur" style="background-image: url('https://fl511.com/map/Cctv/1971?t=1781023949');"></div>
+        <div class="fg-image" style="background-image: url('https://fl511.com/map/Cctv/1971?t=1781023949');"></div>
+    </div>
+
+<!-- Slide 6 -->
+    <div class="slide-container">
+        <div class="bg-blur" style="background-image: url('https://fl511.com/map/Cctv/1969?t=1781024377');"></div>
+        <div class="fg-image" style="background-image: url('https://fl511.com/map/Cctv/1969?t=1781024377');"></div>
+    </div>
+
+
+
+    <!-- Persistent Floating Waze Map -->
+    <div class="map-widget">
+        <iframe src="https://embed.waze.com/iframe?zoom=14&lat=27.111711&lon=-80.264498&ct=livemap" width="550" height="400" allowfullscreen></iframe>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide-container');
+        let currentIndex = 0;
+
+        function showNextSlide() {
+            slides[currentIndex].classList.remove('active');
+            currentIndex = (currentIndex + 1) % slides.length;
+            slides[currentIndex].classList.add('active');
+        }
+
+        setInterval(showNextSlide, 10000);
+    </script>
+</body>
+</html>
