@@ -74,9 +74,11 @@
         }
 
         #status {
-            margin: 10px 0;
+            margin: 15px auto;
+            max-width: 600px;
             font-weight: bold;
             color: #ffcc00;
+            line-height: 1.4;
         }
 
         .cam-grid {
@@ -144,9 +146,17 @@
         let refreshInterval = null;
         let cameraDataCache = [];
 
-        // Attempt to pull live telemetry from Tesla browser GPS
+        // Attempt to pull live telemetry with rigorous Tesla validation
         function getBrowserLocation() {
-            document.getElementById('status').innerText = "Requesting GPS location...";
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "Connecting to Tesla GPS antenna...";
+            
+            // Check if browser is running securely (Tesla blocks location on HTTP)
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                statusDiv.innerHTML = "❌ <strong>Security Error:</strong> Tesla blocks GPS on HTTP sites. You MUST load this website using an <strong>https://</strong> URL.";
+                return;
+            }
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -157,12 +167,24 @@
                         fetchNearbyCameras();
                     },
                     (error) => {
-                        document.getElementById('status').innerText = "GPS access denied or unavailable. Please enter coordinates manually.";
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                statusDiv.innerHTML = "❌ <strong>GPS Denied:</strong> Go to Tesla <em>Controls > Safety</em> and enable location/data sharing.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                statusDiv.innerText = "❌ GPS signal lost. Check vehicle satellite reception.";
+                                break;
+                            case error.TIMEOUT:
+                                statusDiv.innerText = "❌ Connection timed out waiting for vehicle location data.";
+                                break;
+                            default:
+                                statusDiv.innerText = "❌ Unknown GPS configuration error.";
+                        }
                     },
-                    { enableHighAccuracy: true, timeout: 10000 }
+                    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
                 );
             } else {
-                document.getElementById('status').innerText = "Geolocation not supported by browser.";
+                statusDiv.innerText = "❌ Geolocation is entirely unsupported by this browser layout.";
             }
         }
 
@@ -239,26 +261,3 @@
                 // Ensure URLs use HTTPS to prevent mixed-content blocks in browser
                 const secureUrl = cam.url.replace("http://", "https://");
                 const dynamicImg = `${secureUrl}?t=${timestamp}`;
-                
-                return `
-                    <div class="cam-card">
-                        <img src="${dynamicImg}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://w3.org\' width=\'100%\' height=\'100%\' viewBox=\'0 0 100 100\'><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23666\' font-size=\'10\'>Camera Feed Offline</text></svg>';" alt="Traffic Camera">
-                        <div class="cam-info">
-                            <div class="cam-title" title="${cam.name}">${cam.name}</div>
-                            <div class="cam-miles">📍 ${cam.distance.toFixed(1)} miles away</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Set interval to flush image memory cache and show latest snapshot
-        function setupAutoRefresh() {
-            clearInterval(refreshInterval);
-            refreshInterval = setInterval(() => {
-                renderGrid();
-            }, 10000); // 10 second refresh loop
-        }
-
-        // Formula to accurately calculate distance from car to camera coordinates
-        function haversineDistance(lat1, lon1, lat2, lon2) {
