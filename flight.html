@@ -3,287 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nearby Flight Radar</title>
+    <title>Nearby Flight Radar v2</title>
     <style>
         :root {
-            --bg-color: #1a1a1a;
-            --card-bg: #2d2d2d;
-            --text-main: #ffffff;
-            --text-muted: #a0a0a0;
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #e0e0e0;
             --accent: #3b82f6;
-            --danger: #ef4444;
-            --success: #22c55e;
+            --muted: #6b7280;
         }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #333;
-        }
-
-        h1 { margin: 0; font-size: 1.5rem; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; margin: 0; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         
-        #status {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            font-family: monospace;
+        .card { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .photo-box { height: 180px; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+        .info { padding: 15px; }
+        
+        .flight-id { font-size: 1.5rem; font-weight: bold; color: var(--accent); display: flex; justify-content: space-between; }
+        .reg { font-size: 0.8rem; background: #333; padding: 2px 6px; border-radius: 4px; color: #aaa; align-self: center; }
+        .stat-row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.95rem; color: #ccc; }
+        
+        #error-banner { 
+            background: #7f1d1d; color: #fecaca; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; 
         }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .flight-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            transition: transform 0.2s;
-            position: relative;
-        }
-
-        .flight-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .plane-photo {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            background-color: #000;
-            display: block;
-        }
-
-        .no-photo {
-            height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #333;
-            color: #555;
-            font-weight: bold;
-        }
-
-        .card-content {
-            padding: 15px;
-        }
-
-        .flight-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
-        }
-
-        .callsign {
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        .reg-code {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            background: #444;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-        }
-
-        .label { color: var(--text-muted); }
-        .value { font-weight: 600; }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
+        button { cursor: pointer; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-    <header>
-        <div>
-            <h1>✈️ Nearby Traffic</h1>
-            <div id="location-display" style="font-size: 0.8rem; color: #888; margin-top: 5px;">Waiting for location...</div>
+    <div id="error-banner">
+        <strong>⚠️ Connection Failed:</strong> <span id="error-msg"></span><br>
+        <small>If this says "NetworkError" or "CORS", see the instructions below.</small>
+        <div style="margin-top:10px">
+            <button onclick="useProxy()">Try with Proxy (Fix CORS)</button>
         </div>
-        <div id="status">Initializing...</div>
-    </header>
-
-    <div id="dashboard" class="dashboard-grid">
-        <!-- Flight cards will be injected here -->
     </div>
 
-    <div id="loading" class="loading-overlay">
-        <h2>Acquiring GPS Signal...</h2>
+    <div class="header">
+        <div>
+            <h2 style="margin:0">✈️ Nearby Traffic</h2>
+            <small id="coords">Locating...</small>
+        </div>
+        <div id="status">Ready</div>
     </div>
+
+    <div id="grid" class="grid"></div>
 
     <script>
-        // CONFIGURATION
-        const SEARCH_RADIUS_NM = 25; // Nautical miles
-        const REFRESH_RATE_MS = 30000; // 30 seconds
+        // CONFIG
+        const RADIUS_NM = 50; 
+        let USE_PROXY = false; // Toggle if CORS fails
         
-        // STATE
-        let userLat = null;
-        let userLon = null;
-        let photoCache = {}; // Cache photos to prevent spamming Planespotters API
+        // ELEMENT REFS
+        const grid = document.getElementById('grid');
+        const status = document.getElementById('status');
+        const errorBanner = document.getElementById('error-banner');
+        const errorMsg = document.getElementById('error-msg');
+        const coords = document.getElementById('coords');
 
-        // DOM ELEMENTS
-        const dashboard = document.getElementById('dashboard');
-        const statusEl = document.getElementById('status');
-        const locDisplay = document.getElementById('location-display');
-        const loadingEl = document.getElementById('loading');
+        // CACHE
+        const photoCache = {};
 
-        // 1. STARTUP: Get Location
         function init() {
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLat = position.coords.latitude;
-                        userLon = position.coords.longitude;
-                        locDisplay.textContent = `${userLat.toFixed(4)}, ${userLon.toFixed(4)}`;
-                        loadingEl.style.display = 'none';
-                        fetchData(); // Initial fetch
-                        setInterval(fetchData, REFRESH_RATE_MS); // Start loop
-                    },
-                    (error) => {
-                        loadingEl.innerHTML = `<h3 style="color: var(--danger)">Error: Location Access Denied</h3><p>This app needs your location to find nearby planes.</p>`;
-                        console.error(error);
-                    }
-                );
-            } else {
-                loadingEl.innerHTML = "<h3>Geolocation not supported by this browser.</h3>";
-            }
+            if(!navigator.geolocation) return alert("Geolocation not supported");
+            navigator.geolocation.getCurrentPosition(success, fail);
         }
 
-        // 2. FETCH FLIGHT DATA
-        async function fetchData() {
-            statusEl.textContent = "Updating...";
+        function success(pos) {
+            const { latitude: lat, longitude: lon } = pos.coords;
+            coords.textContent = `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+            fetchFlights(lat, lon);
+            setInterval(() => fetchFlights(lat, lon), 15000);
+        }
+
+        function fail() {
+            coords.textContent = "Location Denied";
+            alert("Please allow location access to find nearby planes.");
+        }
+
+        async function fetchFlights(lat, lon) {
+            status.textContent = "Fetching...";
             
+            // CORRECTED ENDPOINT (v3)
+            let url = `https://adsb.fi{lat}/lon/${lon}/dist/${RADIUS_NM}`;
+            
+            // PROXY MODE (If normal fetch fails)
+            if (USE_PROXY) {
+                url = `https://allorigins.win{encodeURIComponent(url)}`;
+            }
+
             try {
-                // Using adsb.fi API v2 for nearby traffic
-                const url = `https://adsb.fi{userLat}/lon/${userLon}/dist/${SEARCH_RADIUS_NM}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`API Error ${res.status}`);
                 
-                const response = await fetch(url);
-                if (!response.ok) throw new Error("API Network Error");
+                let data = await res.json();
                 
-                const data = await response.json();
-                renderFlights(data.ac || []); // "ac" is the array of aircraft
+                // Handle Proxy Response Structure
+                if (USE_PROXY) data = JSON.parse(data.contents);
+
+                // Handle different keys (v3 usually uses 'aircraft' or 'ac')
+                const list = data.aircraft || data.ac || [];
                 
-                statusEl.textContent = `Live: ${new Date().toLocaleTimeString()}`;
+                render(list);
+                status.textContent = `Updated: ${new Date().toLocaleTimeString()} (${list.length} planes)`;
+                errorBanner.style.display = 'none';
+
             } catch (err) {
                 console.error(err);
-                statusEl.textContent = "Update Failed. Retrying...";
+                status.textContent = "Error";
+                errorBanner.style.display = 'block';
+                errorMsg.textContent = err.message + ". Your browser blocked the request.";
             }
         }
 
-        // 3. RENDER CARDS
-        async function renderFlights(flights) {
-            // Sort by altitude (descending)
-            flights.sort((a, b) => (b.alt_baro || 0) - (a.alt_baro || 0));
+        window.useProxy = function() {
+            USE_PROXY = true;
+            errorMsg.textContent = "Retrying with Proxy...";
+            navigator.geolocation.getCurrentPosition((pos) => {
+                fetchFlights(pos.coords.latitude, pos.coords.longitude);
+            });
+        }
 
-            // Clear current list (in a real app, we would diff/update instead of rebuild)
-            dashboard.innerHTML = '';
+        async function render(list) {
+            grid.innerHTML = '';
+            
+            // Sort by altitude
+            list.sort((a,b) => (b.alt_baro||0) - (a.alt_baro||0));
 
-            if (flights.length === 0) {
-                dashboard.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">No aircraft found within range.</p>';
+            if(list.length === 0) {
+                grid.innerHTML = '<p>No aircraft found nearby.</p>';
                 return;
             }
 
-            for (const flight of flights) {
+            for (const p of list) {
+                const hex = p.hex;
+                const callsign = (p.flight || p.r || hex).trim();
+                const alt = p.alt_baro ? p.alt_baro + ' ft' : 'GND';
+                const spd = p.gs ? Math.round(p.gs) + ' kts' : '-';
+                
                 const card = document.createElement('div');
-                card.className = 'flight-card';
+                card.className = 'card';
                 
-                // Prepare Data
-                const callsign = flight.flight ? flight.flight.trim() : (flight.r || 'N/A');
-                const hex = flight.hex;
-                const altitude = flight.alt_baro === "ground" ? "GND" : `${flight.alt_baro || 0} ft`;
-                const speed = flight.gs ? `${Math.round(flight.gs)} kts` : 'N/A';
-                const type = flight.t || 'Unknown Type';
-                const reg = flight.r || hex;
-
-                // Photo Handling
-                let photoUrl = await getPhoto(hex);
-                
-                const imgHTML = photoUrl 
-                    ? `<img src="${photoUrl}" class="plane-photo" alt="${reg}" loading="lazy">`
-                    : `<div class="no-photo"><span>No Photo Available</span></div>`;
-
+                // Photo Placeholder
                 card.innerHTML = `
-                    ${imgHTML}
-                    <div class="card-content">
-                        <div class="flight-header">
-                            <a href="https://adsb.fi{hex}" target="_blank" class="callsign" title="View on Map">${callsign}</a>
-                            <span class="reg-code">${reg}</span>
+                    <div class="photo-box" id="img-${hex}">Loading...</div>
+                    <div class="info">
+                        <div class="flight-id">
+                            <a href="https://adsb.fi{hex}" target="_blank" style="color:inherit;text-decoration:none">${callsign}</a>
+                            <span class="reg">${p.r || hex}</span>
                         </div>
-                        <div class="data-row">
-                            <span class="label">Altitude</span>
-                            <span class="value" style="color: ${flight.alt_baro < 3000 ? 'var(--accent)' : 'inherit'}">${altitude}</span>
-                        </div>
-                        <div class="data-row">
-                            <span class="label">Speed</span>
-                            <span class="value">${speed}</span>
-                        </div>
-                        <div class="data-row">
-                            <span class="label">Aircraft</span>
-                            <span class="value">${type}</span>
-                        </div>
+                        <div class="stat-row"><span>Alt: ${alt}</span> <span>Spd: ${spd}</span></div>
+                        <div class="stat-row"><span>Type: ${p.t || 'Unknown'}</span></div>
                     </div>
                 `;
-
-                dashboard.appendChild(card);
+                grid.appendChild(card);
+                
+                // Lazy Load Photo
+                loadPhoto(hex);
             }
         }
 
-        // 4. FETCH PHOTOS (with Caching)
-        async function getPhoto(hex) {
-            if (photoCache[hex]) return photoCache[hex];
+        async function loadPhoto(hex) {
+            const box = document.getElementById(`img-${hex}`);
+            if(photoCache[hex]) {
+                box.innerHTML = `<img src="${photoCache[hex]}">`;
+                return;
+            }
 
             try {
-                const res = await fetch(`https://planespotters.net{hex}`);
-                const data = await res.json();
-                
-                if (data.photos && data.photos.length > 0) {
-                    const url = data.photos[0].thumbnail_large.src; // Using thumbnail to save bandwidth
-                    photoCache[hex] = url;
-                    return url;
+                // Planespotters API
+                const r = await fetch(`https://planespotters.net{hex}`);
+                const d = await r.json();
+                if(d.photos && d.photos.length > 0) {
+                    const src = d.photos[0].thumbnail_large.src;
+                    photoCache[hex] = src;
+                    box.innerHTML = `<img src="${src}">`;
                 } else {
-                    photoCache[hex] = null; // Mark as not found so we don't retry immediately
-                    return null;
+                    box.innerHTML = '<span style="color:#555">No Photo</span>';
+                    photoCache[hex] = null;
                 }
-            } catch (e) {
-                console.warn("Photo fetch failed for", hex);
-                return null;
+            } catch(e) {
+                box.innerHTML = '<span style="color:#555">Error</span>';
             }
         }
 
-        // Start the application
         init();
-
     </script>
 </body>
 </html>
