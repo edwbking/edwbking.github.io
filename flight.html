@@ -3,193 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nearby Flight Radar v2</title>
+    <title>Flight Radar (CORS Fix)</title>
+    <script src="https://cloudflare.com"></script>
     <style>
-        :root {
-            --bg: #121212;
-            --card: #1e1e1e;
-            --text: #e0e0e0;
-            --accent: #3b82f6;
-            --muted: #6b7280;
-        }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; margin: 0; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 15px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        :root { --bg:#121212; --card:#1e1e1e; --text:#e0e0e0; --accent:#3b82f6; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
         
+        /* Header & Button */
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+        #kiosk-btn { background: var(--accent); color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; font-size: 1rem; }
+        #kiosk-btn.active { background: #d32f2f; }
+
+        /* Grid & Cards */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; }
         .card { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .photo-box { height: 180px; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        
+        .photo-box { height: 160px; background: #000; position: relative; }
         .photo-box img { width: 100%; height: 100%; object-fit: cover; }
-        .info { padding: 15px; }
+        .photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #555; }
         
-        .flight-id { font-size: 1.5rem; font-weight: bold; color: var(--accent); display: flex; justify-content: space-between; }
-        .reg { font-size: 0.8rem; background: #333; padding: 2px 6px; border-radius: 4px; color: #aaa; align-self: center; }
-        .stat-row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.95rem; color: #ccc; }
-        
-        #error-banner { 
-            background: #7f1d1d; color: #fecaca; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; 
-        }
-        button { cursor: pointer; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 4px; }
+        .info { padding: 12px; }
+        .flight-main { font-size: 1.4rem; font-weight: 800; color: var(--accent); display: flex; justify-content: space-between; }
+        .reg-badge { font-size: 0.75rem; background: #333; color: #aaa; padding: 2px 6px; border-radius: 4px; align-self: center; }
+        .stats { display: flex; justify-content: space-between; margin-top: 8px; color: #ccc; font-size: 0.9rem; }
+
+        /* Logs */
+        #logs { margin-top: 30px; font-family: monospace; font-size: 0.7rem; color: #555; border-top: 1px solid #333; padding-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="error-banner">
-        <strong>⚠️ Connection Failed:</strong> <span id="error-msg"></span><br>
-        <small>If this says "NetworkError" or "CORS", see the instructions below.</small>
-        <div style="margin-top:10px">
-            <button onclick="useProxy()">Try with Proxy (Fix CORS)</button>
-        </div>
-    </div>
-
     <div class="header">
         <div>
             <h2 style="margin:0">✈️ Nearby Traffic</h2>
-            <small id="coords">Locating...</small>
+            <small id="gps-status" style="color: #888">Waiting for GPS...</small>
         </div>
-        <div id="status">Ready</div>
+        <button id="kiosk-btn" onclick="toggleKiosk()">📺 Start Kiosk</button>
     </div>
 
     <div id="grid" class="grid"></div>
+    <div id="logs">System Log:<br></div>
 
     <script>
         // CONFIG
         const RADIUS_NM = 50; 
-        let USE_PROXY = false; // Toggle if CORS fails
-        
-        // ELEMENT REFS
-        const grid = document.getElementById('grid');
-        const status = document.getElementById('status');
-        const errorBanner = document.getElementById('error-banner');
-        const errorMsg = document.getElementById('error-msg');
-        const coords = document.getElementById('coords');
+        const PROXY_BASE = "https://allorigins.win"; // The CORS Fixer
 
-        // CACHE
-        const photoCache = {};
+        // STATE
+        let noSleep = new NoSleep();
+        let isKiosk = false;
+        let photoCache = {};
 
-        function init() {
-            if(!navigator.geolocation) return alert("Geolocation not supported");
-            navigator.geolocation.getCurrentPosition(success, fail);
+        // UTILS
+        function log(msg) {
+            const logEl = document.getElementById('logs');
+            logEl.innerHTML += `> ${msg}<br>`;
+            console.log(msg);
         }
 
-        function success(pos) {
-            const { latitude: lat, longitude: lon } = pos.coords;
-            coords.textContent = `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
-            fetchFlights(lat, lon);
-            setInterval(() => fetchFlights(lat, lon), 15000);
-        }
-
-        function fail() {
-            coords.textContent = "Location Denied";
-            alert("Please allow location access to find nearby planes.");
-        }
-
-        async function fetchFlights(lat, lon) {
-            status.textContent = "Fetching...";
-            
-            // CORRECTED ENDPOINT (v3)
-            let url = `https://adsb.fi{lat}/lon/${lon}/dist/${RADIUS_NM}`;
-            
-            // PROXY MODE (If normal fetch fails)
-            if (USE_PROXY) {
-                url = `https://allorigins.win{encodeURIComponent(url)}`;
+        function toggleKiosk() {
+            const btn = document.getElementById('kiosk-btn');
+            if (!isKiosk) {
+                noSleep.enable();
+                document.documentElement.requestFullscreen?.() || document.documentElement.webkitRequestFullscreen?.();
+                btn.textContent = "🛑 Stop Kiosk";
+                btn.classList.add('active');
+                isKiosk = true;
+            } else {
+                noSleep.disable();
+                document.exitFullscreen?.();
+                btn.textContent = "📺 Start Kiosk";
+                btn.classList.remove('active');
+                isKiosk = false;
             }
+        }
 
+        // --- DATA FETCHING (Always Proxied) ---
+
+        // 1. Helper to fetch via Proxy
+        async function fetchProxy(targetUrl) {
+            // Encode the target URL and wrap it in the proxy
+            const finalUrl = PROXY_BASE + encodeURIComponent(targetUrl);
+            const res = await fetch(finalUrl);
+            if (!res.ok) throw new Error(`Proxy Error ${res.status}`);
+            
+            const envelope = await res.json();
+            // AllOrigins puts the actual response in "contents"
+            if (!envelope.contents) throw new Error("Empty Proxy Response");
+            
+            // Try to parse the inner JSON (the actual flight data)
+            return JSON.parse(envelope.contents); 
+        }
+
+        // 2. Main Logic
+        function init() {
+            if(!navigator.geolocation) return log("❌ Geolocation not supported");
+            
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude.toFixed(3);
+                    const lon = pos.coords.longitude.toFixed(3);
+                    document.getElementById('gps-status').textContent = `${lat}, ${lon}`;
+                    log(`✅ GPS Lock: ${lat}, ${lon}`);
+                    
+                    // Start Loop
+                    updateFlights(lat, lon);
+                    setInterval(() => updateFlights(lat, lon), 30000);
+                },
+                (err) => {
+                    log("❌ GPS Access Denied: " + err.message);
+                    alert("Please allow Location Access to see nearby planes.");
+                }
+            );
+        }
+
+        async function updateFlights(lat, lon) {
+            log("📡 Fetching Flights...");
+            const grid = document.getElementById('grid');
+            
             try {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`API Error ${res.status}`);
+                // Using v2 API via Proxy
+                const url = `https://adsb.fi{lat}/lon/${lon}/dist/${RADIUS_NM}`;
                 
-                let data = await res.json();
+                const data = await fetchProxy(url); // <--- ROUTED THROUGH PROXY
+                const list = data.ac || data.aircraft || [];
                 
-                // Handle Proxy Response Structure
-                if (USE_PROXY) data = JSON.parse(data.contents);
+                log(`✅ Found ${list.length} aircraft`);
+                
+                if(list.length === 0) {
+                    grid.innerHTML = '<p style="padding:20px; color:#666">No aircraft within range.</p>';
+                    return;
+                }
 
-                // Handle different keys (v3 usually uses 'aircraft' or 'ac')
-                const list = data.aircraft || data.ac || [];
-                
-                render(list);
-                status.textContent = `Updated: ${new Date().toLocaleTimeString()} (${list.length} planes)`;
-                errorBanner.style.display = 'none';
+                // Render
+                grid.innerHTML = '';
+                list.sort((a,b) => (b.alt_baro||0) - (a.alt_baro||0)); // Sort by Altitude
+
+                for (const p of list) {
+                    const hex = p.hex;
+                    const callsign = (p.flight || p.r || hex).trim();
+                    const alt = p.alt_baro ? p.alt_baro + " ft" : "GND";
+                    
+                    const el = document.createElement('div');
+                    el.className = 'card';
+                    el.innerHTML = `
+                        <div class="photo-box" id="img-${hex}">
+                            <div class="photo-placeholder">Loading...</div>
+                        </div>
+                        <div class="info">
+                            <div class="flight-main">
+                                <a href="https://adsb.fi{hex}" style="color:inherit;text-decoration:none">${callsign}</a>
+                                <span class="reg-badge">${p.r || hex}</span>
+                            </div>
+                            <div class="stats">
+                                <span>✈️ ${p.t || 'N/A'}</span>
+                                <span>📏 ${alt}</span>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(el);
+                    
+                    // Load Photo (Also Proxied)
+                    loadPhoto(hex);
+                }
 
             } catch (err) {
-                console.error(err);
-                status.textContent = "Error";
-                errorBanner.style.display = 'block';
-                errorMsg.textContent = err.message + ". Your browser blocked the request.";
-            }
-        }
-
-        window.useProxy = function() {
-            USE_PROXY = true;
-            errorMsg.textContent = "Retrying with Proxy...";
-            navigator.geolocation.getCurrentPosition((pos) => {
-                fetchFlights(pos.coords.latitude, pos.coords.longitude);
-            });
-        }
-
-        async function render(list) {
-            grid.innerHTML = '';
-            
-            // Sort by altitude
-            list.sort((a,b) => (b.alt_baro||0) - (a.alt_baro||0));
-
-            if(list.length === 0) {
-                grid.innerHTML = '<p>No aircraft found nearby.</p>';
-                return;
-            }
-
-            for (const p of list) {
-                const hex = p.hex;
-                const callsign = (p.flight || p.r || hex).trim();
-                const alt = p.alt_baro ? p.alt_baro + ' ft' : 'GND';
-                const spd = p.gs ? Math.round(p.gs) + ' kts' : '-';
-                
-                const card = document.createElement('div');
-                card.className = 'card';
-                
-                // Photo Placeholder
-                card.innerHTML = `
-                    <div class="photo-box" id="img-${hex}">Loading...</div>
-                    <div class="info">
-                        <div class="flight-id">
-                            <a href="https://adsb.fi{hex}" target="_blank" style="color:inherit;text-decoration:none">${callsign}</a>
-                            <span class="reg">${p.r || hex}</span>
-                        </div>
-                        <div class="stat-row"><span>Alt: ${alt}</span> <span>Spd: ${spd}</span></div>
-                        <div class="stat-row"><span>Type: ${p.t || 'Unknown'}</span></div>
-                    </div>
-                `;
-                grid.appendChild(card);
-                
-                // Lazy Load Photo
-                loadPhoto(hex);
+                log("❌ Fetch Error: " + err.message);
             }
         }
 
         async function loadPhoto(hex) {
-            const box = document.getElementById(`img-${hex}`);
-            if(photoCache[hex]) {
-                box.innerHTML = `<img src="${photoCache[hex]}">`;
+            if (photoCache[hex]) {
+                injectPhoto(hex, photoCache[hex]);
                 return;
             }
 
             try {
-                // Planespotters API
-                const r = await fetch(`https://planespotters.net{hex}`);
-                const d = await r.json();
-                if(d.photos && d.photos.length > 0) {
-                    const src = d.photos[0].thumbnail_large.src;
+                // PlaneSpotters API is strict, so we PROXY this too
+                const url = `https://planespotters.net{hex}`;
+                const data = await fetchProxy(url);
+
+                if (data.photos && data.photos.length > 0) {
+                    const src = data.photos[0].thumbnail_large.src;
                     photoCache[hex] = src;
-                    box.innerHTML = `<img src="${src}">`;
+                    injectPhoto(hex, src);
                 } else {
-                    box.innerHTML = '<span style="color:#555">No Photo</span>';
-                    photoCache[hex] = null;
+                    document.getElementById(`img-${hex}`).innerHTML = 
+                        '<div class="photo-placeholder">No Photo</div>';
                 }
-            } catch(e) {
-                box.innerHTML = '<span style="color:#555">Error</span>';
+            } catch (e) {
+                // Quietly fail for photos
+                document.getElementById(`img-${hex}`).innerHTML = 
+                    '<div class="photo-placeholder">N/A</div>';
             }
         }
 
+        function injectPhoto(hex, src) {
+            const box = document.getElementById(`img-${hex}`);
+            if(box) box.innerHTML = `<img src="${src}" loading="lazy">`;
+        }
+
+        // Boot
         init();
+
     </script>
 </body>
 </html>
