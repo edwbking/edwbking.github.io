@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidGrid Clone - Multiviewer</title>
+    <!-- HLS.js for Live TV Stream Support (m3u8) -->
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --control-bg: #1e1e1e;
+            --highlight: #00bcd4;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Top Control Bar */
+        #controls {
+            height: 50px;
+            background-color: var(--control-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 15px;
+            border-bottom: 1px solid #333;
+            z-index: 100;
+            position: relative;
+        }
+
+        button {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #444;
+        }
+
+        button.primary {
+            background-color: var(--highlight);
+            color: #000;
+        }
+
+        input {
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            width: 300px;
+        }
+
+        /* The Grid Container */
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* Default 2x2 */
+            grid-template-rows: repeat(2, 1fr);
+            height: calc(100vh - 50px); /* Fill remaining height */
+            width: 100%;
+            gap: 2px;
+            background-color: #000;
+        }
+
+        /* Individual Video Cell */
+        .video-cell {
+            position: relative;
+            background: #000;
+            overflow: hidden;
+            border: 1px solid #222;
+        }
+
+        .video-cell video, .video-cell iframe {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none; /* Passes clicks to the container overlay */
+        }
+
+        /* Overlay for "Click to Unmute" logic */
+        .cell-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            cursor: pointer;
+            z-index: 10;
+            transition: box-shadow 0.2s;
+        }
+
+        .cell-overlay:hover {
+            box-shadow: inset 0 0 0 2px var(--highlight);
+        }
+
+        .active-audio .cell-overlay {
+            box-shadow: inset 0 0 0 4px var(--highlight);
+        }
+
+        .mute-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        /* Fullscreen Helper Class */
+        .fullscreen-mode {
+            height: 100vh !important;
+        }
+        
+        /* Hide controls when in full screen if desired, or keep them accessible */
+        body.is-fullscreen #controls {
+            /* Optional: display: none; to hide controls in fullscreen */
+        }
+        body.is-fullscreen #grid-container {
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <div style="font-weight:900; font-size: 18px; margin-right: 10px;">VidClone</div>
+    <input type="text" id="streamUrl" placeholder="Paste .m3u8 URL or YouTube ID...">
+    <button onclick="addStream()">Add Stream</button>
+    <div style="flex-grow:1"></div>
+    <button onclick="setGrid(1)">1x1</button>
+    <button onclick="setGrid(2)">2x2</button>
+    <button onclick="setGrid(3)">3x3</button>
+    <button class="primary" onclick="toggleFullScreen()">&#x26F6; Full Screen Mode</button>
+</div>
+
+<div id="grid-container">
+    <!-- Streams will be injected here -->
+</div>
+
+<script>
+    let activeVideoId = null;
+    let streamCount = 0;
+
+    // Initialize with a few default news/demo streams
+    const defaultStreams = [
+        {type: 'hls', url: 'https://jwplayer.com'}, // NASA TV (Demo)
+        {type: 'hls', url: 'https://stream.ne.jp'}, // NHK World
+        {type: 'hls', url: 'https://akamaized.net'}, // CBS News
+        {type: 'hls', url: 'https://uplynk.com'} // ABC News
+    ];
+
+    window.onload = () => {
+        defaultStreams.forEach(s => createCell(s.url, s.type));
+    };
+
+    function addStream() {
+        const url = document.getElementById('streamUrl').value;
+        if(url) {
+            createCell(url, url.includes('.m3u8') ? 'hls' : 'yt');
+            document.getElementById('streamUrl').value = '';
+        }
+    }
+
+    function createCell(url, type) {
+        streamCount++;
+        const grid = document.getElementById('grid-container');
+        const cell = document.createElement('div');
+        cell.className = 'video-cell';
+        cell.id = `cell-${streamCount}`;
+        
+        // Mute/Active Status Indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'mute-indicator';
+        indicator.innerText = 'MUTED';
+        cell.appendChild(indicator);
+
+        // Click overlay for audio control
+        const overlay = document.createElement('div');
+        overlay.className = 'cell-overlay';
+        overlay.onclick = () => activateAudio(cell.id);
+        cell.appendChild(overlay);
+
+        if (type === 'hls') {
+            const video = document.createElement('video');
+            video.muted = true;
+            video.autoplay = true;
+            video.playsInline = true;
+            
+            if (Hls.isSupported()) {
+                const hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(video);
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+            }
+            cell.appendChild(video);
+        } else {
+            // Basic YouTube handling (Note: YouTube blocks some programmatic audio)
+            // For a perfect clone, you'd use the YouTube IFrame API. 
+            // This is a simplified embed for portability.
+            const ytId = url.includes('v=') ? url.split('v=')[1] : url;
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://youtube.com{ytId}?autoplay=1&mute=1&controls=0&enablejsapi=1`;
+            iframe.frameBorder = "0";
+            cell.appendChild(iframe);
+        }
+
+        grid.appendChild(cell);
+        updateGridLayout();
+    }
+
+    function activateAudio(cellId) {
+        // Mute all others
+        document.querySelectorAll('.video-cell').forEach(c => {
+            const vid = c.querySelector('video');
+            const iframe = c.querySelector('iframe');
+            const ind = c.querySelector('.mute-indicator');
+            
+            c.classList.remove('active-audio');
+            ind.innerText = 'MUTED';
+
+            if (vid) vid.muted = true;
+            if (iframe) {
+                // Sending message to YouTube iframe to mute
+                iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', '*');
+            }
+        });
+
+        // Unmute target
+        const target = document.getElementById(cellId);
+        if(target) {
+            target.classList.add('active-audio');
+            target.querySelector('.mute-indicator').innerText = 'AUDIO ON';
+            
+            const vid = target.querySelector('video');
+            const iframe = target.querySelector('iframe');
+
+            if (vid) {
+                vid.muted = false;
+                vid.play().catch(e => console.log("Browser blocked autoplay audio"));
+            }
+            if (iframe) {
+                iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
+            }
+        }
+    }
+
+    function setGrid(cols) {
+        const grid = document.getElementById('grid-container');
+        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        grid.style.gridTemplateRows = `repeat(${cols}, 1fr)`;
+    }
+
+    function updateGridLayout() {
+        // Auto-adjust grid based on count if needed, or stick to manual buttons
+    }
+
+    // --- YOUR REQUESTED FEATURE: GLOBAL FULLSCREEN ---
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            });
+            document.body.classList.add('is-fullscreen');
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+                document.body.classList.remove('is-fullscreen');
+            }
+        }
+    }
+</script>
+
+</body>
+</html>
