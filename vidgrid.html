@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VidGrid Launch</title>
+    <title>VidGrid Launcher</title>
     <style>
         body, html {
             margin: 0;
@@ -12,34 +12,22 @@
             height: 100%;
             overflow: hidden;
             background-color: #111;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: sans-serif;
+        }
+        /* Click Overlay Setup */
+        #launchZone {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             color: #fff;
-        }
-        .container {
-            text-align: center;
             cursor: pointer;
-            padding: 40px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.05);
-            transition: background 0.3s ease;
-        }
-        .container:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        p {
-            font-size: 1.2rem;
-            color: #aaa;
-            margin-bottom: 30px;
+            z-index: 10;
+            background: #111;
         }
         .btn {
-            display: inline-block;
             padding: 15px 40px;
             font-size: 1.2rem;
             font-weight: bold;
@@ -47,40 +35,47 @@
             background-color: #007bff;
             border: none;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        /* Hidden Fullscreen Frame */
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <div class="container" id="launchZone">
+    <div id="launchZone">
         <h1>Welcome to VidGrid</h1>
-        <p>Click anywhere or use the button below to launch in full screen</p>
+        <p>Click anywhere to launch the stream setup in full screen</p>
         <button class="btn">Enter Full Screen</button>
     </div>
 
+    <!-- The frame must include allow="fullscreen" permissions -->
+    <iframe id="vidgridFrame" src="https://tk.gg" allow="fullscreen"></iframe>
+
     <script>
-        const targetUrl = "https://vidgrid.tk.gg";
         const launchZone = document.getElementById('launchZone');
+        const iframe = document.getElementById('vidgridFrame');
 
         launchZone.addEventListener('click', () => {
             const docElm = document.documentElement;
             
-            // Request Full Screen
+            // Trigger native fullscreen on the root document
             if (docElm.requestFullscreen) {
                 docElm.requestFullscreen();
-            } else if (docElm.mozRequestFullScreen) { /* Firefox */
-                docElm.mozRequestFullScreen();
-            } else if (docElm.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+            } else if (docElm.webkitRequestFullscreen) { 
                 docElm.webkitRequestFullscreen();
-            } else if (docElm.msRequestFullscreen) { /* IE/Edge */
+            } else if (docElm.msRequestFullscreen) { 
                 docElm.msRequestFullscreen();
             }
 
-            // Short delay to allow the browser to transition to full screen before redirecting
-            setTimeout(() => {
-                window.location.href = targetUrl;
-            }, 300);
+            // Swap visibility: Hide the launch button, display the embedded site
+            launchZone.style.display = 'none';
+            iframe.style.display = 'block';
         });
     </script>
 
