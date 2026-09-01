@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waiver and Release of Liability</title>
+    <!-- Include html2pdf.js Library for PDF generation -->
+    <script src="https://cloudflare.com"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --border-color: #bdc3c7;
+            --bg-color: #f8f9fa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .waiver-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 24px;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 15px;
+        }
+
+        .waiver-text {
+            padding: 10px 0;
+            margin-bottom: 35px;
+            font-size: 14px;
+            text-align: justify;
+        }
+
+        .waiver-text p {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--primary-color);
+        }
+
+        input[type="text"], input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        .signature-area {
+            border: 1px dashed var(--border-color);
+            border-radius: 4px;
+            background: #fff;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 150px;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .no-print {
+            display: block;
+        }
+
+        .clear-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-bottom: 20px;
+            transition: background 0.2s;
+        }
+
+        .clear-btn:hover {
+            background: #c0392b;
+        }
+
+        .submit-btn {
+            display: block;
+            width: 100%;
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-transform: uppercase;
+        }
+
+        .submit-btn:hover {
+            background: #219653;
+        }
+
+        /* Style adjustments to make elements look great in the final text document */
+        .pdf-signature-img {
+            max-height: 100px;
+            border-bottom: 1px solid #333;
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .waiver-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="waiver-container" id="waiverDocument">
+    <h1>Waiver and Release of Liability</h1>
+    
+    <div class="waiver-text">
+        <p><strong>IN CONSIDERATION OF</strong> the risk of injury that exists while participating in ALL ACTIVITIES (hereinafter the "Activity"); and</p>
+        
+        <p><strong>IN CONSIDERATION OF</strong> my desire to participate in said Activity and being given the right to participate in same;</p>
+        
+        <p><strong>I HEREBY</strong>, for myself, my heirs, executors, administrators, assigns, or personal representatives (hereinafter collectively, "Releasor," "I" or "me", which terms shall also include Releasor's parents or guardian if Releasor is under 18 years of age), knowingly and voluntarily enter into this WAIVER AND RELEASE OF LIABILITY and hereby waive any and all rights, claims or causes of action of any kind arising out of my participation in the Activity; and</p>
+        
+        <p><strong>I HEREBY</strong> release and forever discharge WEDGWORTH FARMS, INC., located at 651 NW 9th St, Belle Glade, Florida 33430, their affiliates, managers, members, agents, attorneys, staff, volunteers, heirs, representatives, predecessors, successors and assigns (collectively "Releasees"), from any physical or psychological injury that I may suffer as a direct result of my participation in the aforementioned Activity.</p>
+        
+        <p><strong>I AM VOLUNTARILY PARTICIPATING IN THE AFOREMENTIONED ACTIVITY AND I AM PARTICIPATING IN THE ACTIVITY ENTIRELY AT MY OWN RISK. I AM AWARE OF THE RISKS ASSOCIATED WITH PARTICIPATING IN THIS ACTIVITY, WHICH MAY INCLUDE, BUT ARE NOT LIMITED TO: PHYSICAL OR PSYCHOLOGICAL INJURY, PAIN, SUFFERING, ILLNESS, DISFIGUREMENT, TEMPORARY OR PERMANENT DISABILITY (INCLUDING PARALYSIS), ECONOMIC OR EMOTIONAL LOSS, AND DEATH. I UNDERSTAND THAT THESE INJURIES OR OUTCOMES MAY ARISE FROM MY OWN OR OTHERS' NEGLIGENCE, CONDITIONS RELATED TO TRAVEL TO AND FROM THE ACTIVITY, OR FROM CONDITIONS AT THE ACTIVITY LOCATION(S). NONETHELESS, I ASSUME ALL RELATED RISKS, BOTH KNOWN AND UNKNOWN TO ME, OF MY PARTICIPATION IN THIS ACTIVITY.</strong></p>
+        
+        <p><strong>I FURTHER AGREE</strong> to indemnify, defend and hold harmless the Releasees against any and all claims, suits or actions of any kind whatsoever for liability, damages, compensation or otherwise brought by me or anyone on my behalf, including attorney's fees and any related costs.</p>
+        
+        <p><strong>I FURTHER ACKNOWLEDGE</strong> that Releasees are not responsible for errors, omissions, acts or failures to act of any party or entity conducting a specific event or activity on behalf of Releasees.</p>
+        
+        <p>In the event that I should require medical care or treatment, I authorize Wedgworth Farms, Inc. to provide all emergency medical care deemed necessary, including but not limited to, first aid, CPR, the use of AEDs, emergency medical transport, and sharing of medical information with medical personnel. I further agree to assume all costs involved and agree to be financially responsible for any costs incurred as a result of such treatment. I am aware and understand that I should carry my own health insurance.</p>
+        
+        <p><strong>I FURTHER ACKNOWLEDGE</strong> that this Activity may involve a test of a person's physical and mental limits and may carry with it the potential for death, serious injury, and property loss. I agree not to participate in the Activity unless I am medically able and properly trained, and I agree to abide by the decision of the Wedgworth Farms, Inc. official or agent, regarding my approval to participate in the Activity.</p>
+        
+        <p><strong>I HEREBY ACKNOWLEDGE THAT I HAVE CAREFULLY READ THIS "WAIVER AND RELEASE" AND FULLY UNDERSTAND THAT IT IS A RELEASE OF LIABILITY.</strong></p>
+    </div>
+
+    <form id="waiverForm" onsubmit="exportToPDF(event)">
+        <div class="form-group">
+            <label for="fullName">Participant Full Name (Printed)</label>
+            <input type="text" id="fullName" required placeholder="John Doe">
+        </div>
+
+        <div class="form-group">
+            <label id="sigLabel">Signature</label>
+            <div class="signature-area" id="sigArea">
+                <canvas id="signatureCanvas"></canvas>
+            </div>
+            <!-- Static placeholder for signature image insertion during generation -->
+            <img id="pdfSignature" class="pdf-signature-img" alt="User Signature">
+            <button type="button" class="clear-btn no-print" id="clearBtn" onclick="clearCanvas()">Clear Signature</button>
+        </div>
+
+        <div class="form-group">
+            <label for="signDate">Date</label>
+            <input type="date" id="signDate" required>
+        </div>
+
+        <button type="submit" class="submit-btn no-print" id="submitBtn">Submit & Export PDF</button>
+    </form>
+</div>
+
+<script>
+    const canvas = document.getElementById('signatureCanvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+
+    function resizeCanvas() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#000000';
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('DOMContentLoaded', () => {
+        resizeCanvas();
+        document.getElementById('signDate').value = new Date().toISOString().split('T')[0];
+    });
+
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches.clientX : e.clientX;
+        const clientY = e.touches ? e.touches.clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function startDrawing(e) {
+        isDrawing = true;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+    }
+
+    function stopDrawing() { isDrawing = false; }
+
+canvas.addEventListener('mousedown', startDrawing);
+canvas.addEventListener('mousemove', draw);
+window.addEventListener('mouseup', stopDrawing);
+canvas.addEventListener('touchstart', startDrawing);
+canvas.addEventListener('touchmove', draw);
+window.addEventListener('touchend', stopDrawing);
+function clearCanvas() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+function exportToPDF(e) {
+e.preventDefault();
+// Canvas empty verification
+const blank = document.createElement('canvas');
+blank.width = canvas.width;
+blank.height = canvas.height;
+if (canvas.toDataURL() === blank.toDataURL()) {
+alert('Please sign the document before exporting.');
+return;
+}
+// 1. Prepare UI elements for printing
+const signatureDataUrl = canvas.toDataURL();
+const pdfImg = document.getElementById('pdfSignature');
+const sigArea = document.getElementById('sigArea');
+const noPrintElements = document.querySelectorAll('.no-print');
+const element = document.getElementById('waiverDocument');
+const participantName = document.getElementById('fullName').value;
+// Swap out active interactive canvas with flat static image for pdf layout compatibility
+pdfImg.src = signatureDataUrl;
+pdfImg.style.display = 'block';
+sigArea.style.display = 'none';
+// Hide structural control elements (Buttons)
+noPrintElements.forEach(el => el.style.display = 'none');
+// 2. Configure pdf rendering rules
+const opt = {
+margin: [0.5, 0.5, 0.5, 0.5], // Top, Left, Bottom, Right inches
+filename:  Waiver_${participantName.replace(/\s+/g, '_')}.pdf,
+image: { type: 'jpeg', quality: 0.98 },
+html2canvas: { scale: 2, useCORS: true, logging: false },
+jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+};
+// 3. Trigger PDF construction and download loop
+html2pdf().set(opt).from(element).save().then(() => {
+// 4. Restore original screen state for seamless UI view after download finishes
+pdfImg.style.display = 'none';
+sigArea.style.display = 'block';
+noPrintElements.forEach(el => el.style.display = 'block');
+});
+}
