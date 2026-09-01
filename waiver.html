@@ -24,11 +24,11 @@
         .form-group.sig-group { flex: 1.4; }
         label { display: block; font-weight: 600; margin-bottom: 3px; color: var(--primary); font-size: 10px; }
         input[type="text"], input[type="date"] { width: 100%; padding: 5px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; font-size: 11px; height: 30px; }
-        .signature-area { border: 1px dashed var(--border); border-radius: 4px; background: #fff; height: 55px; position: relative; }
+        .signature-area { border: 1px dashed var(--border); border-radius: 4px; background: #fff; height: 60px; position: relative; }
         canvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
         .clear-btn { background: #e74c3c; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 9px; margin-top: 2px; float: right; }
         .submit-btn { display: block; width: 100%; background: #27ae60; color: white; border: none; padding: 8px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; text-transform: uppercase; margin-top: 5px; }
-        .pdf-signature-img { max-height: 50px; display: none; margin: 0 auto; }
+        .pdf-signature-img { max-height: 55px; display: none; margin: 0 auto; }
         @media (max-width: 600px) { .form-row { flex-direction: column; gap: 8px; } .form-group, .form-group.sig-group { width: 100%; } .clear-btn { float: none; margin-bottom: 5px; } }
     </style>
 </head>
@@ -67,34 +67,34 @@
     const canvas = document.getElementById('signatureCanvas'); 
     const ctx = canvas.getContext('2d'); 
     let isDrawing = false;
-    let canvasInitialized = false;
     
     function initCanvas() { 
-        if(canvasInitialized && canvas.width > 0) return;
-        canvas.width = canvas.clientWidth || 300; 
-        canvas.height = canvas.clientHeight || 55; 
+        // Read precise bounding bounds to map pixel coordinates
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width; 
+        canvas.height = rect.height; 
         ctx.lineWidth = 2.5; 
         ctx.lineCap = 'round'; 
         ctx.lineJoin = 'round'; 
-        ctx.strokeStyle = '#000'; 
-        if(canvas.width > 300) canvasInitialized = true;
+        ctx.strokeStyle = '#000000'; 
     }
     
     window.addEventListener('DOMContentLoaded', () => { 
         initCanvas(); 
-        document.getElementById('signDate').value = new Date().toISOString().split('T'); 
+        document.getElementById('signDate').value = new Date().toISOString().split('T')[0]; 
     });
-    window.addEventListener('load', initCanvas);
+    
+    // Fallback handler to verify layout bounds are painted correctly
+    window.addEventListener('load', setTimeout(initCanvas, 100));
     
     function getPos(e) { 
         const r = canvas.getBoundingClientRect(); 
-        const cx = e.touches ? e.touches.clientX : e.clientX; 
-        const cy = e.touches ? e.touches.clientY : e.clientY; 
+        const cx = e.touches ? e.touches[0].clientX : e.clientX; 
+        const cy = e.touches ? e.touches[0].clientY : e.clientY; 
         return { x: cx - r.left, y: cy - r.top }; 
     }
     
     function start(e) { 
-        initCanvas();
         isDrawing = true; 
         const p = getPos(e); 
         ctx.beginPath(); 
@@ -153,18 +153,14 @@
             jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } 
         };
         
-        // Use Blob pipeline to circumvent Safari file-saving restrictions
         html2pdf().set(opt).from(container).outputPdf('bloburl').then((blobUrl) => {
-            // Restore interactive web elements instantly
             if (isIOS) { container.style.transform = ''; }
             img.style.display = 'none'; 
             area.style.display = 'block'; 
             noPrint.forEach(i => i.style.display = 'block');
-            
-            // Redirect Safari viewport target to the preview window
             window.location.href = blobUrl;
         }).catch((err) => {
-            alert('Error generating PDF presentation layout.');
+            alert('Error generating PDF layout preview.');
             img.style.display = 'none'; 
             area.style.display = 'block'; 
             noPrint.forEach(i => i.style.display = 'block');
