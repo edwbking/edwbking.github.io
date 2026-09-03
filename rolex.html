@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta Portal Photo Frame</title>
+    <!-- Include NoSleep.js from CDN to prevent screen dimming -->
+    <script src="https://cloudflare.com"></script>
+    <style>
+        /* Reset margins and ensure full screen utilization */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* Full-screen background image container */
+        .background-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://pixelcaster.com');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 1;
+        }
+
+        /* Widget container positioning the clock in the top-right corner */
+        .clock-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        iframe {
+            display: block;
+            border: none;
+        }
+
+        /* Interactive action button for Fullscreen and NoSleep */
+        .control-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 20;
+            padding: 12px 24px;
+            background-color: rgba(255, 255, 255, 0.85);
+            color: #111;
+            border: none;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background-color: #fff;
+            transform: scale(1.05);
+        }
+
+        /* Hide the button once fullscreen and wake lock are active */
+        .control-btn.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Image -->
+    <div class="background-frame"></div>
+
+    <!-- Rolex Clock Overlay -->
+    <div class="clock-container">
+        <iframe 
+            src="https://rolex.com" 
+            width="270" 
+            height="90" 
+            frameborder="0" 
+            scrolling="no">
+        </iframe>
+    </div>
+
+    <!-- User interaction button (Required by browsers to trigger Fullscreen and WakeLock) -->
+    <button id="activateBtn" class="control-btn">Enable Fullscreen & Keep Awake</button>
+
+    <script>
+        // Initialize NoSleep instance
+        const noSleep = new NoSleep();
+        const activateBtn = document.getElementById('activateBtn');
+
+        activateBtn.addEventListener('click', function() {
+            // 1. Enable Fullscreen mode
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            } else if (document.documentElement.mozRequestFullScreen) { /* Firefox */
+                document.documentElement.mozRequestFullScreen();
+            } else if (document.documentElement.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+                document.documentElement.webkitRequestFullscreen();
+            } else if (document.documentElement.msRequestFullscreen) { /* IE/Edge */
+                document.documentElement.msRequestFullscreen();
+            }
+
+            // 2. Enable NoSleep wake lock
+            noSleep.enable();
+
+            // 3. Hide the button once activated
+            activateBtn.classList.add('hidden');
+        });
+
+        // Auto-refresh the page every 60 seconds to update the webcam backdrop
+        setTimeout(function() {
+            window.location.reload();
+        }, 60000);
+    </script>
+</body>
+</html>
