@@ -2,15 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meta Portal Photo Frame</title>
-    <!-- Web App Manifest capabilities for clean fullscreen launching -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
     <!-- Include NoSleep.js from CDN to prevent screen dimming -->
     <script src="https://cloudflare.com"></script>
     <style>
+        /* Reset margins and ensure full screen utilization */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -57,27 +54,32 @@
             border: none;
         }
 
-        /* Ambient, clean button to activate the Wake Lock */
-        .wake-btn {
+        /* Interactive action button for Fullscreen and NoSleep */
+        .control-btn {
             position: absolute;
             bottom: 20px;
             right: 20px;
             z-index: 20;
-            padding: 10px 20px;
-            background-color: rgba(0, 0, 0, 0.6);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 20px;
-            font-size: 13px;
+            padding: 12px 24px;
+            background-color: rgba(255, 255, 255, 0.85);
+            color: #111;
+            border: none;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: bold;
             cursor: pointer;
-            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             transition: all 0.2s ease;
         }
 
-        .wake-btn.active {
-            background-color: rgba(46, 204, 113, 0.4);
-            border-color: #2ecc71;
-            color: #e8f8f5;
+        .control-btn:hover {
+            background-color: #fff;
+            transform: scale(1.05);
+        }
+
+        /* Hide the button once fullscreen and wake lock are active */
+        .control-btn.hidden {
+            display: none;
         }
     </style>
 </head>
@@ -97,42 +99,31 @@
         </iframe>
     </div>
 
-    <!-- Wake Lock button (Browsers require a tap gesture to activate nosleep) -->
-    <button id="wakeBtn" class="wake-btn">🔒 Tap to Keep Awake</button>
+    <!-- User interaction button (Required by browsers to trigger Fullscreen and WakeLock) -->
+    <button id="activateBtn" class="control-btn">Enable Fullscreen & Keep Awake</button>
 
     <script>
+        // Initialize NoSleep instance
         const noSleep = new NoSleep();
-        const wakeBtn = document.getElementById('wakeBtn');
-        let isAwake = false;
+        const activateBtn = document.getElementById('activateBtn');
 
-        wakeBtn.addEventListener('click', function() {
-            if (!isAwake) {
-                noSleep.enable();
-                wakeBtn.textContent = "🔓 Frame Stay-Awake Active";
-                wakeBtn.classList.add('active');
-                isAwake = true;
-                
-                // Optional: Fade out the button after 5 seconds so it doesn't block the view
-                setTimeout(() => {
-                    wakeBtn.style.opacity = '0.1';
-                }, 5000);
-            } else {
-                noSleep.disable();
-                wakeBtn.textContent = "🔒 Tap to Keep Awake";
-                wakeBtn.classList.remove('active');
-                wakeBtn.style.opacity = '1';
-                isAwake = false;
+        activateBtn.addEventListener('click', function() {
+            // 1. Enable Fullscreen mode
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            } else if (document.documentElement.mozRequestFullScreen) { /* Firefox */
+                document.documentElement.mozRequestFullScreen();
+            } else if (document.documentElement.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+                document.documentElement.webkitRequestFullscreen();
+            } else if (document.documentElement.msRequestFullscreen) { /* IE/Edge */
+                document.documentElement.msRequestFullscreen();
             }
-        });
 
-        // Automatically brings back wake-lock state if saved in session across 60s refreshes
-        if (sessionStorage.getItem('wakeActive') === 'true') {
-            // Browsers still require user gesture post-refresh, so we prompt them
-            wakeBtn.textContent = "👉 Tap to Resume Stay-Awake";
-        }
+            // 2. Enable NoSleep wake lock
+            noSleep.enable();
 
-        wakeBtn.addEventListener('click', () => {
-            sessionStorage.setItem('wakeActive', isAwake);
+            // 3. Hide the button once activated
+            activateBtn.classList.add('hidden');
         });
 
         // Auto-refresh the page every 60 seconds to update the webcam backdrop
